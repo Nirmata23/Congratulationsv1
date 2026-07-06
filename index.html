@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Logro desbloqueado</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+  :root{
+    --bg-0:#07060c;
+    --bg-1:#120e1e;
+    --panel:#1a1430;
+    --gold:#ffd23f;
+    --gold-dim:#c9971f;
+    --magenta:#ff4d97;
+    --cyan:#3ee6c4;
+    --ink:#eef0f5;
+    --dim:#8a84a8;
+  }
+
+  *{box-sizing:border-box;image-rendering:pixelated;}
+  html,body{
+    margin:0;height:100%;overflow:hidden;
+    background:var(--bg-0);
+    font-family:'VT323',monospace;
+    color:var(--ink);
+  }
+
+  .crt-frame{
+    position:relative;
+    width:100%;height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg-0);
+  }
+
+  /* fondo animado: hebras de luz (Strands / ogl) */
+  #fondo-strands{
+    position:absolute;inset:0;z-index:0;
+    background:radial-gradient(ellipse at 50% 40%, var(--bg-1), var(--bg-0) 75%);
+  }
+  #fondo-strands canvas{display:block;width:100%;height:100%;}
+
+  /* lineas de escaneo + viñeta CRT, por encima del fondo */
+  .crt-frame::before{
+    content:"";position:absolute;inset:0;z-index:5;pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px,
+      rgba(0,0,0,.28) 3px, rgba(0,0,0,0) 4px
+    );
+    mix-blend-mode:multiply;
+    animation:flicker 6s infinite;
+  }
+  .crt-frame::after{
+    content:"";position:absolute;inset:0;z-index:6;pointer-events:none;
+    box-shadow:inset 0 0 140px 40px rgba(0,0,0,.75);
+  }
+  @keyframes flicker{0%,97%,100%{opacity:1;}98%{opacity:.86;}99%{opacity:.96;}}
+
+  /* estrellitas pixel dispersas */
+  .estrella{position:absolute;display:grid;z-index:1;opacity:0;animation:parpadeo 2.4s ease-in-out infinite;}
+  .estrella div{width:5px;height:5px;}
+  @keyframes parpadeo{0%,100%{opacity:.15;}50%{opacity:.85;}}
+
+  .panel{
+    position:relative;z-index:2;
+    width:min(560px, 88vw);
+    padding:34px 30px 30px;
+    background:linear-gradient(180deg, rgba(26,20,48,.94), rgba(16,11,31,.96));
+    border:3px solid #0a0714;
+    box-shadow:
+      0 0 0 3px #322659,
+      0 0 0 6px #0a0714,
+      0 18px 50px rgba(0,0,0,.6);
+    text-align:center;
+    backdrop-filter:blur(2px);
+  }
+
+  /* esquinas estilo HUD de videojuego */
+  .esq{position:absolute;width:16px;height:16px;}
+  .esq::before,.esq::after{content:"";position:absolute;background:var(--gold);}
+  .esq::before{width:16px;height:4px;}
+  .esq::after{width:4px;height:16px;}
+  .esq.tl{top:-3px;left:-3px;}
+  .esq.tr{top:-3px;right:-3px;}
+  .esq.bl{bottom:-3px;left:-3px;}
+  .esq.br{bottom:-3px;right:-3px;}
+  .esq.tr::before,.esq.tr::after{right:0;}
+  .esq.bl::before,.esq.bl::after{bottom:0;}
+  .esq.br::before,.esq.br::after{right:0;bottom:0;}
+
+  #trofeo{
+    display:inline-grid;
+    margin:0 auto 14px;
+    gap:0;
+  }
+  #trofeo div{width:6px;height:6px;}
+
+  .titulo-wrap{
+    position:relative;
+    perspective:800px;
+    margin:0 0 14px;
+    opacity:0;
+    animation:aparece .7s forwards;
+  }
+  @keyframes aparece{to{opacity:1;}}
+
+  .brillo-titulo{
+    position:absolute;top:50%;left:50%;
+    width:280px;height:220px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(255,210,63,.4), rgba(255,77,151,.18) 45%, transparent 72%);
+    filter:blur(12px);
+    z-index:0;
+    animation:pulso-titulo 3s ease-in-out infinite;
+  }
+  @keyframes pulso-titulo{
+    0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(.9);}
+    50%{opacity:1;transform:translate(-50%,-50%) scale(1.08);}
+  }
+
+  .titulo-3d{
+    position:relative;z-index:1;
+    transform-style:preserve-3d;
+    animation:girar-titulo 6.5s ease-in-out infinite;
+  }
+  @keyframes girar-titulo{
+    0%,100%{transform:rotateY(0deg) rotateX(0deg);}
+    25%{transform:rotateY(14deg) rotateX(3deg);}
+    75%{transform:rotateY(-14deg) rotateX(-3deg);}
+  }
+
+  .titulo{
+    font-family:'Press Start 2P',monospace;
+    font-size:clamp(1.3rem, 5.6vw, 2rem);
+    color:var(--gold);
+    margin:0;
+    letter-spacing:1px;
+    text-shadow:
+      1px 1px 0 var(--gold-dim),
+      2px 2px 0 var(--gold-dim),
+      3px 3px 0 #8a6a1f,
+      4px 4px 0 #6b5118,
+      5px 5px 12px rgba(0,0,0,.65),
+      0 0 26px rgba(255,210,63,.55),
+      0 0 52px rgba(255,77,151,.28);
+  }
+
+  .badge{
+    display:inline-block;
+    font-family:'Press Start 2P',monospace;
+    font-size:.62rem;
+    color:var(--bg-0);
+    background:var(--cyan);
+    padding:6px 10px;
+    letter-spacing:.5px;
+    box-shadow:3px 3px 0 var(--gold-dim);
+    opacity:0;
+    animation:badge-in .5s forwards;
+    animation-delay:1.3s;
+    margin-bottom:20px;
+  }
+  @keyframes badge-in{to{opacity:1;}}
+
+  .divisor{
+    color:var(--dim);
+    font-size:1.1rem;
+    letter-spacing:2px;
+    opacity:0;
+    margin:6px 0 16px;
+    animation:badge-in .4s forwards;
+    animation-delay:1.7s;
+    user-select:none;
+  }
+
+  .terminal{
+    text-align:left;
+    font-size:1.16rem;
+    line-height:1.5;
+    color:var(--cyan);
+    min-height:170px;
+    white-space:pre-wrap;
+  }
+  .terminal .es{ color:var(--magenta); }
+  .terminal .cursor{
+    display:inline-block;width:9px;height:1.05em;background:var(--cyan);
+    vertical-align:-2px;animation:parpadeo-cursor 1s steps(1) infinite;
+  }
+  @keyframes parpadeo-cursor{50%{opacity:0;}}
+
+  .progreso-wrap{
+    margin-top:20px;text-align:left;
+    opacity:0;
+  }
+  .progreso-wrap.mostrar{opacity:1;transition:opacity .4s;}
+  .progreso-label{
+    font-family:'Press Start 2P',monospace;
+    font-size:.6rem;color:var(--dim);
+    margin-bottom:8px;letter-spacing:.5px;
+  }
+  .progreso-barra{
+    display:flex;gap:3px;
+  }
+  .segmento{
+    flex:1;height:14px;background:#231a3d;
+    border:1px solid #0a0714;
+  }
+  .segmento.lleno{background:var(--gold);box-shadow:0 0 8px rgba(255,210,63,.6);}
+
+  .firma{
+    margin-top:22px;
+    font-size:1.05rem;
+    color:var(--magenta);
+    opacity:0;
+    animation:badge-in .6s forwards;
+    text-align:right;
+  }
+</style>
+</head>
+<body>
+<div class="crt-frame">
+  <div id="fondo-strands"></div>
+  <div id="cielo"></div>
+
+  <div class="panel" id="panel">
+    <div class="esq tl"></div><div class="esq tr"></div>
+    <div class="esq bl"></div><div class="esq br"></div>
+
+    <div id="trofeo"></div>
+
+    <div class="titulo-wrap">
+      <div class="brillo-titulo"></div>
+      <div class="titulo-3d">
+        <h1 class="titulo" id="titulo"></h1>
+      </div>
+    </div>
+    <div class="badge">[ LOGRO DESBLOQUEADO ] MATH</div>
+    <div class="divisor">══════════════════════════</div>
+
+    <div class="terminal" id="terminal"></div>
+
+    <div class="progreso-wrap" id="progresoWrap">
+      <div class="progreso-label">NIVEL MATH ALCANZADO</div>
+      <div class="progreso-barra" id="barra"></div>
+    </div>
+
+    <div class="firma" id="firma">&mdash; Profe Andy &mdash;</div>
+  </div>
+</div>
+
+<script>
+/* ---------- utilidad: dibuja arte pixel a partir de un mapa de caracteres ---------- */
+function dibujarPixelArt(contenedor, patron, colores, tam){
+  const filas = patron.length, cols = patron[0].length;
+  contenedor.style.gridTemplateColumns = `repeat(${cols}, ${tam}px)`;
+  contenedor.style.gridTemplateRows = `repeat(${filas}, ${tam}px)`;
+  patron.forEach(fila=>{
+    for(const ch of fila){
+      const px = document.createElement('div');
+      px.style.width = tam+'px';
+      px.style.height = tam+'px';
+      px.style.background = colores[ch] || 'transparent';
+      contenedor.appendChild(px);
+    }
+  });
+}
+
+/* trofeo 15 x 12, sin usar emojis: arte pixel puro */
+const trofeo = [
+  "......###......",
+  ".....#GGG#.....",
+  ".....#GHG#.....",
+  "....#GGGGG#....",
+  "....#GGGGG#....",
+  ".....#GGG#.....",
+  ".....#GGG#.....",
+  ".....#DDD#.....",
+  "....#DDDDD#....",
+  "...#BBBBBBB#...",
+  "...#BBBBBBB#...",
+  "..#############"
+];
+dibujarPixelArt(document.getElementById('trofeo'), trofeo, {
+  '#':'#0a0714', 'G':'#ffd23f', 'H':'#fff6d0', 'D':'#c9971f', 'B':'#4b2e6b'
+}, 8);
+
+/* estrellita pixel reutilizable */
+const estrellaPatron = ["..Y..",".YYY.","YYYYY",".YYY.","..Y.."];
+const cielo = document.getElementById('cielo');
+const coloresPosibles = ['#3ee6c4','#ffd23f','#ff4d97'];
+for(let i=0;i<14;i++){
+  const wrap = document.createElement('div');
+  wrap.className='estrella';
+  wrap.style.left = Math.random()*100+'%';
+  wrap.style.top = Math.random()*100+'%';
+  wrap.style.animationDelay = (Math.random()*3)+'s';
+  const color = coloresPosibles[Math.floor(Math.random()*coloresPosibles.length)];
+  dibujarPixelArt(wrap, estrellaPatron, {'Y':color}, 3);
+  cielo.appendChild(wrap);
+}
+
+/* ---------- titulo: aparicion letra por letra ---------- */
+document.getElementById('titulo').textContent = "¡FELICIDADES!";
+
+/* ---------- terminal: ingles primero, traduccion al espanol despues ---------- */
+const lineasEN = [
+  "> You did an excellent job in your Math book!",
+  "> Keep working hard.",
+  "> I'm so proud of you."
+];
+const lineasES = [
+  "> Hiciste un excelente trabajo en tu libro de Math.",
+  "> Sigue esforzandote.",
+  "> Me siento muy orgulloso de ti."
+];
+
+const bloqueEN = lineasEN.join("\n");
+const bloqueES = lineasES.join("\n");
+const terminalEl = document.getElementById('terminal');
+
+function tecleraBloque(texto, claseExtra, callback){
+  let idx = 0;
+  function paso(){
+    const parcial = texto.slice(0, idx).replace(/\n/g,'<br>');
+    const spanClase = claseExtra ? ` class="${claseExtra}"` : '';
+    terminalEl.innerHTML =
+      (claseExtra ? terminalEl.dataset.previo || '' : '') +
+      `<span${spanClase}>${parcial}</span><span class="cursor"></span>`;
+    idx++;
+    if(idx <= texto.length){
+      setTimeout(paso, 16);
+    } else {
+      terminalEl.dataset.previo = terminalEl.innerHTML.replace('<span class="cursor"></span>','');
+      if(callback) setTimeout(callback, 500);
+    }
+  }
+  paso();
+}
+
+setTimeout(()=>{
+  tecleraBloque(bloqueEN, '', ()=>{
+    terminalEl.innerHTML += '<br><br>';
+    terminalEl.dataset.previo = terminalEl.innerHTML;
+    tecleraBloque(bloqueES, 'es', ()=>{
+      document.getElementById('progresoWrap').classList.add('mostrar');
+      llenarBarra();
+    });
+  });
+}, 1900);
+
+/* ---------- barra de progreso pixel ---------- */
+const barra = document.getElementById('barra');
+const totalSegmentos = 20;
+for(let i=0;i<totalSegmentos;i++){
+  const seg=document.createElement('div');
+  seg.className='segmento';
+  barra.appendChild(seg);
+}
+function llenarBarra(){
+  const segs = barra.children;
+  let i=0;
+  const t=setInterval(()=>{
+    if(i>=segs.length){clearInterval(t);
+      document.getElementById('firma').style.animationDelay='.1s';
+      return;}
+    segs[i].classList.add('lleno');
+    i++;
+  }, 45);
+}
+</script>
+
+<!-- ===================== FONDO ANIMADO: STRANDS (ogl / WebGL) =====================
+     Requiere conexion a internet para cargar la libreria "ogl" desde un CDN.
+     Adaptado del componente React "Strands" (React Bits) a JavaScript plano. -->
+<script type="module">
+import { Renderer, Program, Mesh, Color, Triangle, RenderTarget } from 'https://cdn.jsdelivr.net/npm/ogl@1.0.6/+esm';
+
+const MAX_STRANDS = 12;
+const MAX_COLORS = 8;
+
+const VERT = `#version 300 es
+in vec2 position;
+void main() {
+  gl_Position = vec4(position, 0.0, 1.0);
+}
+`;
+
+const FRAG = `#version 300 es
+precision highp float;
+
+uniform float uTime;
+uniform vec2 uResolution;
+uniform vec3 uColors[${MAX_COLORS}];
+uniform int uColorCount;
+uniform int uStrandCount;
+uniform float uSpeed;
+uniform float uAmplitude;
+uniform float uWaviness;
+uniform float uThickness;
+uniform float uGlow;
+uniform float uTaper;
+uniform float uSpread;
+uniform float uHueShift;
+uniform float uIntensity;
+uniform float uOpacity;
+uniform float uScale;
+uniform float uSaturation;
+
+out vec4 fragColor;
+
+const float PI = 3.14159265;
+
+vec3 spectrum(float t) {
+  return 0.5 + 0.5 * cos(2.0 * PI * (t + vec3(0.00, 0.33, 0.67)));
+}
+
+vec3 samplePalette(float t) {
+  t = fract(t);
+  float scaled = t * float(uColorCount);
+  int idx = int(floor(scaled));
+  float blend = fract(scaled);
+  int nextIdx = idx + 1;
+  if (nextIdx >= uColorCount) nextIdx = 0;
+  return mix(uColors[idx], uColors[nextIdx], blend);
+}
+
+vec3 strandColor(float t) {
+  if (uColorCount > 0) return samplePalette(t);
+  return spectrum(t);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution) / uResolution.y;
+  uv /= max(uScale, 0.0001);
+
+  float e = 0.06 + uIntensity * 0.94;
+  float env = pow(max(cos(uv.x * PI * 1.3), 0.0), uTaper);
+
+  vec3 col = vec3(0.0);
+
+  for (int i = 0; i < ${MAX_STRANDS}; i++) {
+    if (i >= uStrandCount) break;
+
+    float fi = float(i);
+    float ph = fi * 1.7 * uSpread;
+    float freq = (2.0 + fi * 0.35) * uWaviness;
+    float spd = 1.4 + fi * 1.2;
+
+    float tt = uTime * uSpeed;
+    float w = sin(uv.x * freq + tt * spd + ph) * 0.60
+            + sin(uv.x * freq * 1.1 - tt * spd * 0.7 + ph * 1.7) * 0.40;
+
+    float amp = (0.1 + 0.02 * e) * env * uAmplitude;
+    float y = w * amp;
+
+    float d = abs(uv.y - y);
+    float thick = (0.001 + 0.05 * e) * (0.35 + env) * uThickness;
+    float g = thick / (d + thick * 0.45);
+    g = g * g;
+
+    float h = fi / float(uStrandCount) + uv.x * 0.30 + uTime * 0.04 + uHueShift;
+    col += strandColor(h) * g * env;
+  }
+
+  col *= 0.45 + 0.7 * e;
+  col = 1.0 - exp(-col * uGlow);
+
+  float gray = dot(col, vec3(0.2126, 0.7152, 0.0722));
+  col = max(mix(vec3(gray), col, uSaturation), 0.0);
+
+  float lum = max(max(col.r, col.g), col.b);
+  float alpha = clamp(lum, 0.0, 1.0) * uOpacity;
+
+  fragColor = vec4(col * uOpacity, alpha);
+}
+`;
+
+const buildPalette = colors => {
+  const filled = colors && colors.length ? colors : ['#ffffff'];
+  const padded = [];
+  for (let i = 0; i < MAX_COLORS; i++) {
+    const hex = filled[i] ?? filled[filled.length - 1];
+    const c = new Color(hex);
+    padded.push([c.r, c.g, c.b]);
+  }
+  return padded;
+};
+
+function iniciarStrands(contenedor, opciones){
+  const {
+    colors = ['#ffd23f', '#ff4d97', '#3ee6c4'],
+    count = 3,
+    speed = 0.35,
+    amplitude = 0.9,
+    waviness = 1,
+    thickness = 0.6,
+    glow = 2.2,
+    taper = 3,
+    spread = 1,
+    hueShift = 0,
+    intensity = 0.55,
+    saturation = 1.3,
+    opacity = 0.55,
+    scale = 1.6
+  } = opciones;
+
+  const renderer = new Renderer({ alpha: true, premultipliedAlpha: true, antialias: true });
+  const gl = renderer.gl;
+  gl.clearColor(0, 0, 0, 0);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.canvas.style.backgroundColor = 'transparent';
+
+  const geometry = new Triangle(gl);
+  if (geometry.attributes.uv) delete geometry.attributes.uv;
+
+  const program = new Program(gl, {
+    vertex: VERT,
+    fragment: FRAG,
+    uniforms: {
+      uTime: { value: 0 },
+      uResolution: { value: [contenedor.offsetWidth, contenedor.offsetHeight] },
+      uColors: { value: buildPalette(colors) },
+      uColorCount: { value: Math.min(colors.length, MAX_COLORS) },
+      uStrandCount: { value: Math.min(count, MAX_STRANDS) },
+      uSpeed: { value: speed },
+      uAmplitude: { value: amplitude },
+      uWaviness: { value: waviness },
+      uThickness: { value: thickness },
+      uGlow: { value: glow },
+      uTaper: { value: taper },
+      uSpread: { value: spread },
+      uHueShift: { value: hueShift },
+      uIntensity: { value: intensity },
+      uOpacity: { value: opacity },
+      uScale: { value: scale },
+      uSaturation: { value: saturation }
+    }
+  });
+
+  const mesh = new Mesh(gl, { geometry, program });
+  contenedor.appendChild(gl.canvas);
+
+  function resize(){
+    const w = contenedor.offsetWidth, h = contenedor.offsetHeight;
+    renderer.setSize(w, h);
+    program.uniforms.uResolution.value = [w, h];
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function update(t){
+    requestAnimationFrame(update);
+    program.uniforms.uTime.value = t * 0.001;
+    renderer.render({ scene: mesh });
+  }
+  requestAnimationFrame(update);
+}
+
+iniciarStrands(document.getElementById('fondo-strands'), {
+  colors: ['#ffd23f', '#ff4d97', '#3ee6c4'],
+  count: 4,
+  speed: 0.3,
+  amplitude: 0.85,
+  waviness: 1.1,
+  thickness: 0.55,
+  glow: 2.0,
+  taper: 2.6,
+  spread: 1.1,
+  intensity: 0.5,
+  saturation: 1.2,
+  opacity: 0.5,
+  scale: 1.7
+});
+</script>
+</body>
+</html>
